@@ -7,6 +7,7 @@
 //
 
 #import "brcore.h"
+#import <pthread.h>
 
 struct br_write_request {
     char *buffer;
@@ -27,7 +28,7 @@ static int _br_create_bind(char *hostname, char *servname) {
     if (r != 0) {
         return -1;
     }
-
+    
     for (rp = result; rp != NULL; rp = rp->ai_next) {
         sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (sfd == -1) {
@@ -116,8 +117,8 @@ static int _br_server_socket_epoll_init() {
 static void _br_dispatch_init() {
     if (_br_queue_write == NULL) {
         _dispatch_register_signal_handler_4LINUX(br_dispatch_handler);
-//        _br_queue_write = dispatch_queue_create("br_write_queue", 0);
-        _br_queue_write = dispatch_get_main_queue();
+        _br_queue_write = dispatch_queue_create("br_write_queue", 0);
+//        _br_queue_write = dispatch_get_main_queue();
         BRLog(@"    br queue: 0x%llX", (unsigned long long) _br_queue_write);
     }
 }
@@ -152,7 +153,8 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
     }
     while (true) {
         BRLog(@"%3d waiting on epoll", efd);
-        int n = epoll_wait(efd, events, MAXEVENTS, -1);
+        int n = epoll_wait(efd, events, MAXEVENTS, 1000);
+        br_dispatch_handler();
         for (int i = 0; i < n; i++) {
             br_client_t *c = events[i].data.ptr;
             BRLog(@"%3d event on fd", c->fd);
@@ -214,19 +216,21 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                 continue;
             } else {
                 while (true) {
-                    BRLog(@"%3d read on fd", c->fd);
                     /* read data */
                     char buff[4096];
                     ssize_t count = read(c->fd, buff, sizeof(buff));
                     if (count == -1) {
                         if (errno != EAGAIN) {
+                            BRLog(@"%3d read on fd ERROR", c->fd);
                             br_client_close(c);
                         }
+                        BRLog(@"%3d read on fd EGAIN", c->fd);
                         break;
                     } else if (count == 0) {
                         br_client_close(c);
                         break;
                     }
+                    BRLog(@"%3d read on fd count:%ld", c->fd, count);
                     
                     /* call user block */
                     if (on_read != NULL) {
@@ -254,32 +258,36 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
 int br_server_create(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *, char *, size_t), void (^on_close)(br_client_t *)){
     BRLog(@"creating server: %s %s", hostname, servname);
 #ifndef __APPLE__
-    return _br_server_socket_epoll(hostname, servname, on_accept, on_read, on_close);
+
+    _br_server_socket_epoll(hostname, servname, on_accept, on_read, on_close);
+    
 #endif
     return 0;
 }
 
 void br_client_close(br_client_t *client) {
-    BRLog(@"%3d br_client_close on fd", client->fd);
-    if (client->done) return;
-    dispatch_async(_br_queue_write, ^{
+    dispatch_sync(_br_queue_write, ^{
+        BRLog(@"%3d br_client_close on fd done: %d", client->fd, client->done);
+        if (client->done) return;
         close(client->fd);
         client->done = 1;
     });
 }
 
 void br_client_write(br_client_t *client, char *buff, size_t buff_len, void (^on_error)(br_client_t *)) {
-    dispatch_async(_br_queue_write, ^{
+    dispatch_sync(_br_queue_write, ^{
+        BRLog(@"%3d br_client_write on fd done: %d", client->fd, client->done);
         int r = write(client->fd, buff, buff_len);
         if (r == -1) {
             if (on_error == NULL) {
-                BRLog(@"%3d AUTOCLOSING failed write on fd: %s", client->fd, strerror(errno));
+                NSLog(@"%3d AUTOCLOSING failed write on fd: %s", client->fd, strerror(errno));
                 br_client_close(client);
             } else {
                 on_error(client);
             }
         } else if (r < buff_len) {
-            BRLog(@"%3d todo: add write request for %ld bytes", client->fd, (buff_len - r));
+            NSLog(@"%3d todo: add write request for %ld bytes", client->fd, (buff_len - r));
         }
+        free(buff);
     });
 }

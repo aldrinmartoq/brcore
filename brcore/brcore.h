@@ -21,8 +21,8 @@
 #include <sys/epoll.h>
 #endif
 
-#define BRLog NSLog
-//#define BRLog(...)
+//#define BRLog(x, args...)  { @autoreleasepool {NSString *s = [NSString stringWithFormat:x, args]; printf("%s\n", [s cStringUsingEncoding:NSUTF8StringEncoding]); } }
+#define BRLog(...)
 
 
 typedef struct br_client {
