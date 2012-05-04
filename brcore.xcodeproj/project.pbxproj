@@ -9,7 +9,8 @@
 /* Begin PBXBuildFile section */
 		20217A7C15536D88008265A9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20217A7B15536D88008265A9 /* Foundation.framework */; };
 		20217A7F15536D88008265A9 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 20217A7E15536D88008265A9 /* main.m */; };
-		20217A8315536D88008265A9 /* brcore.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 20217A8215536D88008265A9 /* brcore.1 */; };
+		20217A8B15536D9C008265A9 /* brcore.m in Sources */ = {isa = PBXBuildFile; fileRef = 20217A8A15536D9C008265A9 /* brcore.m */; };
+		20217A911553783B008265A9 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 20217A901553783B008265A9 /* Makefile */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -19,7 +20,6 @@
 			dstPath = /usr/share/man/man1/;
 			dstSubfolderSpec = 0;
 			files = (
-				20217A8315536D88008265A9 /* brcore.1 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -29,8 +29,11 @@
 		20217A7715536D88008265A9 /* brcore */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = brcore; sourceTree = BUILT_PRODUCTS_DIR; };
 		20217A7B15536D88008265A9 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		20217A7E15536D88008265A9 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		20217A8115536D88008265A9 /* brcore-Prefix.pch */ = {isa = PBXFileReference; path = "brcore-Prefix.pch"; sourceTree = "<group>"; };
-		20217A8215536D88008265A9 /* brcore.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = brcore.1; sourceTree = "<group>"; };
+		20217A8115536D88008265A9 /* brcore-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "brcore-Prefix.pch"; sourceTree = "<group>"; };
+		20217A8915536D9C008265A9 /* brcore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = brcore.h; sourceTree = "<group>"; };
+		20217A8A15536D9C008265A9 /* brcore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = brcore.m; sourceTree = "<group>"; };
+		20217A901553783B008265A9 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		20217A9215540B12008265A9 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -48,6 +51,7 @@
 		20217A6C15536D88008265A9 = {
 			isa = PBXGroup;
 			children = (
+				20217A9215540B12008265A9 /* README.md */,
 				20217A7D15536D88008265A9 /* brcore */,
 				20217A7A15536D88008265A9 /* Frameworks */,
 				20217A7815536D88008265A9 /* Products */,
@@ -74,8 +78,10 @@
 			isa = PBXGroup;
 			children = (
 				20217A7E15536D88008265A9 /* main.m */,
-				20217A8215536D88008265A9 /* brcore.1 */,
 				20217A8015536D88008265A9 /* Supporting Files */,
+				20217A8915536D9C008265A9 /* brcore.h */,
+				20217A8A15536D9C008265A9 /* brcore.m */,
+				20217A901553783B008265A9 /* Makefile */,
 			);
 			path = brcore;
 			sourceTree = "<group>";
@@ -139,6 +145,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				20217A7F15536D88008265A9 /* main.m in Sources */,
+				20217A8B15536D9C008265A9 /* brcore.m in Sources */,
+				20217A911553783B008265A9 /* Makefile in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
