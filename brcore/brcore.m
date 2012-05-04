@@ -122,7 +122,7 @@ static void _br_dispatch_init() {
     }
 }
 
-static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *)) {
+static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *, char *, size_t), void (^on_close)(br_client_t *)) {
     int sfd, r;
     int client_num = 0;
     
@@ -141,7 +141,9 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
     _br_dispatch_init();
 
     struct epoll_event event;
-    event.data.fd = sfd;
+    br_client_t server;
+    server.fd = sfd;
+    event.data.ptr = &server;
     event.events = EPOLLIN | EPOLLET;
     r = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
     if (r == -1) {
@@ -151,13 +153,12 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
     while (true) {
         int n = epoll_wait(efd, events, MAXEVENTS, -1);
         for (int i = 0; i < n; i++) {
-            int fd = events[i].data.fd;
+            br_client_t *c = events[i].data.ptr;
             if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (!(events[i].events & EPOLLIN))) {
-                NSLog(@"epoll error on fd %d: %s", fd, strerror(errno));
-                dispatch_async(_br_queue_write, ^{
-                    close(fd);
-                });
-            } else if (sfd == fd) {
+                NSLog(@"epoll error on fd %d: %s", c->fd, strerror(errno));
+                close(c->fd);
+                continue;
+            } else if (sfd == c->fd) {
                 while (true) {
                     /* accept client */
                     struct sockaddr in_addr;
@@ -188,6 +189,7 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                     c->in_addr = in_addr;
                     r = getnameinfo(&in_addr, in_len, c->hbuf, sizeof(c->hbuf), c->sbuf, sizeof(c->sbuf), NI_NUMERICHOST | NI_NUMERICSERV);
 
+                    /* setup epoll */
                     struct epoll_event event;
                     event.data.ptr = c;
                     event.events = EPOLLIN | EPOLLET;
@@ -198,6 +200,8 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                         free(c);
                         break;
                     }
+                    
+                    /* call user block */
                     if (on_accept != NULL) {
                         on_accept(c);
                     }
@@ -206,39 +210,30 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
             } else {
                 int done = 0;
                 while (true) {
-                    ssize_t count;
-                    char buf[1024];
-                    count = read(fd, buf, sizeof(buf));
+                    /* read data */
+                    char buff[4096];
+                    ssize_t count = read(c->fd, buff, sizeof(buff));
                     if (count == -1) {
                         if (errno != EAGAIN) {
-                            done = 1;
+                            br_client_close(c);
                         }
                         break;
                     } else if (count == 0) {
-                        done = 1;
+                        br_client_close(c);
                         break;
                     }
                     
-                    dispatch_async(_br_queue_write, ^{
-                        char buff[1024*1];
-                        memset(buff, ' ', sizeof(buff));
-                        size_t len = sizeof(buff);
-                        sprintf(buff, "HTTP/1.1 200 OK\n\nHello %010d\n", fd);
-//                        int r = send(fd, buff, len, 0);
-                        int r = write(fd, buff, len);
-                        if (r == -1) {
-                            perror("write");
-                            abort();
-                        }
-                        if (r < len) {
-                        }
-                        close(fd);
-                    });
+                    /* call user block */
+                    if (on_read != NULL) {
+                        on_read(c, buff, count);
+                    }
                 }
-                if (done) {
-                    dispatch_async(_br_queue_write, ^{
-                        close(fd);
-                    });
+                if (c->done) {
+                    /* call user block */
+                    if (on_close != NULL) {
+                        on_close(c);
+                    }
+                    free(c);
                 }
             }
         }
@@ -250,30 +245,34 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
 }
 #endif
 
-int br_server_create(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *)){
+int br_server_create(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *, char *, size_t), void (^on_close)(br_client_t *)){
     NSLog(@"creating server: %s %s", hostname, servname);
 #ifndef __APPLE__
-    return _br_server_socket_epoll(hostname, servname, on_accept, on_read);
+    return _br_server_socket_epoll(hostname, servname, on_accept, on_read, on_close);
 #endif
     return 0;
 }
 
-void br_server_close(br_client_t *client) {
-    
+void br_client_close(br_client_t *client) {
+    if (client->done) return;
+    dispatch_async(_br_queue_write, ^{
+        close(client->fd);
+        client->done = 1;
+    });
 }
 
-void br_server_write(br_client_t *client, char *buff, size_t buff_len, void (^on_error)(br_client_t *)) {
+void br_client_write(br_client_t *client, char *buff, size_t buff_len, void (^on_error)(br_client_t *)) {
     dispatch_async(_br_queue_write, ^{
         int r = write(client->fd, buff, buff_len);
         if (r == -1) {
             if (on_error == NULL) {
                 NSLog(@"AUTOCLOSING fd %d failed write: %s", client->fd, strerror(errno));
-                br_server_close(client);
+                br_client_close(client);
             } else {
                 on_error(client);
             }
         } else if (r < buff_len) {
-            NSLog(@"todo: add write request");
+            NSLog(@"todo: add write request for %ld bytes", (buff_len - r));
         }
     });
 }
