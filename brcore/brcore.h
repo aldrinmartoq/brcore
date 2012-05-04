@@ -21,6 +21,9 @@
 #include <sys/epoll.h>
 #endif
 
+#define BRLog NSLog
+//#define BRLog(...)
+
 
 typedef struct br_client {
     int done;

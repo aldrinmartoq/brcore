@@ -118,7 +118,7 @@ static void _br_dispatch_init() {
         _dispatch_register_signal_handler_4LINUX(br_dispatch_handler);
 //        _br_queue_write = dispatch_queue_create("br_write_queue", 0);
         _br_queue_write = dispatch_get_main_queue();
-        NSLog(@"queue created: 0x%llX", (unsigned long long) _br_queue_write);
+        BRLog(@"    br queue: 0x%llX", (unsigned long long) _br_queue_write);
     }
 }
 
@@ -151,14 +151,17 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
         abort();
     }
     while (true) {
+        BRLog(@"%3d waiting on epoll", efd);
         int n = epoll_wait(efd, events, MAXEVENTS, -1);
         for (int i = 0; i < n; i++) {
             br_client_t *c = events[i].data.ptr;
+            BRLog(@"%3d event on fd", c->fd);
             if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (!(events[i].events & EPOLLIN))) {
-                NSLog(@"epoll error on fd %d: %s", c->fd, strerror(errno));
+                BRLog(@"%3d epoll error on fd: %s", c->fd, strerror(errno));
                 close(c->fd);
                 continue;
             } else if (sfd == c->fd) {
+                BRLog(@"%3d accept on fd", c->fd);
                 while (true) {
                     /* accept client */
                     struct sockaddr in_addr;
@@ -168,19 +171,21 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
                             break;
                         }
-                        NSLog(@"unable to accept client: %s", strerror(errno));
+                        BRLog(@"%3d unable to accept client: %s", c->fd, strerror(errno));
                         break;
                     }
                     r = _br_nonblock(infd);
                     if (r == -1) {
+                        BRLog(@"%3d non block failed on fd", c->fd);
                         close(infd);
                         break;
                     }
 
                     /* create br_client_t */
+                    BRLog(@"%3d creating client on fd", c->fd);
                     br_client_t *c = malloc(sizeof(br_client_t));
                     if (c == NULL) {
-                        NSLog(@"unable to alloc client memory: %s", strerror(errno));
+                        BRLog(@"%3d unable to alloc client memory: %s", c->fd, strerror(errno));
                         close(infd);
                         break;
                     }
@@ -195,7 +200,7 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                     event.events = EPOLLIN | EPOLLET;
                     r = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
                     if (r == -1) {
-                        NSLog(@"error on epoll_client: %s", strerror(errno));
+                        BRLog(@"%3d error on epoll_client: %s", c->fd, strerror(errno));
                         close(infd);
                         free(c);
                         break;
@@ -208,8 +213,8 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                 }
                 continue;
             } else {
-                int done = 0;
                 while (true) {
+                    BRLog(@"%3d read on fd", c->fd);
                     /* read data */
                     char buff[4096];
                     ssize_t count = read(c->fd, buff, sizeof(buff));
@@ -229,6 +234,7 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                     }
                 }
                 if (c->done) {
+                    BRLog(@"%3d done on fd", c->fd);
                     /* call user block */
                     if (on_close != NULL) {
                         on_close(c);
@@ -246,7 +252,7 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
 #endif
 
 int br_server_create(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *, char *, size_t), void (^on_close)(br_client_t *)){
-    NSLog(@"creating server: %s %s", hostname, servname);
+    BRLog(@"creating server: %s %s", hostname, servname);
 #ifndef __APPLE__
     return _br_server_socket_epoll(hostname, servname, on_accept, on_read, on_close);
 #endif
@@ -254,6 +260,7 @@ int br_server_create(char *hostname, char *servname, void (^on_accept)(br_client
 }
 
 void br_client_close(br_client_t *client) {
+    BRLog(@"%3d br_client_close on fd", client->fd);
     if (client->done) return;
     dispatch_async(_br_queue_write, ^{
         close(client->fd);
@@ -266,15 +273,13 @@ void br_client_write(br_client_t *client, char *buff, size_t buff_len, void (^on
         int r = write(client->fd, buff, buff_len);
         if (r == -1) {
             if (on_error == NULL) {
-                NSLog(@"AUTOCLOSING fd %d failed write: %s", client->fd, strerror(errno));
+                BRLog(@"%3d AUTOCLOSING failed write on fd: %s", client->fd, strerror(errno));
                 br_client_close(client);
             } else {
                 on_error(client);
             }
         } else if (r < buff_len) {
-            NSLog(@"todo: add write request for %ld bytes", (buff_len - r));
+            BRLog(@"%3d todo: add write request for %ld bytes", client->fd, (buff_len - r));
         }
     });
 }
-
-
