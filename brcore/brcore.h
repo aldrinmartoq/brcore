@@ -42,36 +42,18 @@ typedef struct br_client {
     br_server_t *s;
 } br_client_t;
 
-void br_log(char *fmt, ...);
-
-#define BR_LOG_TRA_ENABLED 1
+#define BR_LOG_TRA_ENABLED 0
 #define BR_LOG_DEB_ENABLED 0
-#define BR_LOG_INF_ENABLED 0
+#define BR_LOG_INF_ENABLED 1
 #define BR_LOG_ERR_ENABLED 1
 
-#if BR_LOG_TRA_ENABLED == 1
-#define br_log_trace(fmt, args...) br_log(fmt, ## args);
-#else
-#define br_log_trace(fmt, args...)
-#endif
-#if BR_LOG_DEB_ENABLED == 1
-#define br_log_debug(fmt, args...) br_log(fmt, ## args);
-#else
-#define br_log_debug(fmt, args...)
-#endif
-#if BR_LOG_INF_ENABLED == 1
-#define br_log_info(fmt, args...) br_log(fmt, ## args);
-#else
-#define br_log_info(fmt, args...)
-#endif
-#if BR_LOG_INF_ENABLED == 1
-#define br_log_error(fmt, args...) br_log(fmt, ## args);
-#else
-#define br_log_error(fmt, args...)
-#endif
+void br_log(char level, char *fmt, ...);
+void br_log_trace(char *fmt, ...);
+void br_log_debug(char *fmt, ...);
+void br_log_info(char *fmt, ...);
+void br_log_error(char *fmt, ...);
 
 br_server_t *br_server_create(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *, char *, size_t), void (^on_close)(br_client_t *));
-
 void br_client_close(br_client_t *c);
 void br_client_write(br_client_t *c, char *buff, size_t buff_len, void (^on_error)(br_client_t *));
 
