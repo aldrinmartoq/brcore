@@ -1,11 +1,11 @@
-main: brcore.o main.o
-	brayatan-cc -g -o main brcore.o main.o
+main: brcore-epoll.o main.o
+	brayatan-cc -o main brcore-epoll.o main.o
 
-brcore.o: brcore.h brcore.m
-	brayatan-cc -g -c -o brcore.o brcore.m
+brcore-epoll.o: brcore.h brcore-epoll.m
+	brayatan-cc -c -o brcore-epoll.o brcore-epoll.m
 
 main.o: main.m brcore.h
-	brayatan-cc -g -c -o main.o main.m
+	brayatan-cc -c -o main.o main.m
 
 clean:
-	rm *.o main
+	rm -f *.o main

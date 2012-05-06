@@ -9,8 +9,8 @@
 /* Begin PBXBuildFile section */
 		20217A7C15536D88008265A9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20217A7B15536D88008265A9 /* Foundation.framework */; };
 		20217A7F15536D88008265A9 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 20217A7E15536D88008265A9 /* main.m */; };
-		20217A8B15536D9C008265A9 /* brcore.m in Sources */ = {isa = PBXBuildFile; fileRef = 20217A8A15536D9C008265A9 /* brcore.m */; };
 		20217A911553783B008265A9 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 20217A901553783B008265A9 /* Makefile */; };
+		207ACE811556544F00F32573 /* brcore.m in Sources */ = {isa = PBXBuildFile; fileRef = 207ACE801556544F00F32573 /* brcore.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -31,9 +31,10 @@
 		20217A7E15536D88008265A9 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		20217A8115536D88008265A9 /* brcore-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "brcore-Prefix.pch"; sourceTree = "<group>"; };
 		20217A8915536D9C008265A9 /* brcore.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = brcore.h; sourceTree = "<group>"; };
-		20217A8A15536D9C008265A9 /* brcore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = brcore.m; sourceTree = "<group>"; };
 		20217A901553783B008265A9 /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
 		20217A9215540B12008265A9 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
+		20370BC9155493770052F76F /* brcore-epoll.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "brcore-epoll.m"; sourceTree = "<group>"; };
+		207ACE801556544F00F32573 /* brcore.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = brcore.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,8 +81,9 @@
 				20217A7E15536D88008265A9 /* main.m */,
 				20217A8015536D88008265A9 /* Supporting Files */,
 				20217A8915536D9C008265A9 /* brcore.h */,
-				20217A8A15536D9C008265A9 /* brcore.m */,
 				20217A901553783B008265A9 /* Makefile */,
+				20370BC9155493770052F76F /* brcore-epoll.m */,
+				207ACE801556544F00F32573 /* brcore.m */,
 			);
 			path = brcore;
 			sourceTree = "<group>";
@@ -145,8 +147,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				20217A7F15536D88008265A9 /* main.m in Sources */,
-				20217A8B15536D9C008265A9 /* brcore.m in Sources */,
 				20217A911553783B008265A9 /* Makefile in Sources */,
+				207ACE811556544F00F32573 /* brcore.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -237,6 +239,7 @@
 				20217A8815536D88008265A9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

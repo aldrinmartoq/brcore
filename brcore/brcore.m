@@ -9,21 +9,23 @@
 #import "brcore.h"
 #import <pthread.h>
 
+#define BRLog(...)
+
 struct br_write_request {
-    char *buffer;
-    size_t l, i;
+char *buffer;
+size_t l, i;
 };
 
 static int _br_create_bind(char *hostname, char *servname) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int r, sfd;
-
+    
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;        /* IPv4 and IPv6 */
     hints.ai_socktype = SOCK_STREAM;    /* TCP */
     hints.ai_flags = AI_PASSIVE;        /* All interfaces */
-
+    
     r = getaddrinfo(hostname, servname, &hints, &result);
     if (r != 0) {
         return -1;
@@ -34,14 +36,14 @@ static int _br_create_bind(char *hostname, char *servname) {
         if (sfd == -1) {
             continue;
         }
-
+        
         int yes = 1;
         r = setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
         if (r == -1) {
             perror("setsockopt");
             abort();
         }
-
+        
         r = bind(sfd, rp->ai_addr, rp->ai_addrlen);
         if (r == 0) {
             /* bind success */
@@ -49,26 +51,26 @@ static int _br_create_bind(char *hostname, char *servname) {
         }
         close(sfd);
     }
-
+    
     if (rp == NULL) {
         perror("Could not bind");
         return -1;
     }
-
+    
     freeaddrinfo(result);
-
+    
     return sfd;
 }
 
 static int _br_nonblock(int sfd) {
     int flags, r;
-
+    
     flags = fcntl(sfd, F_GETFD, 0);
     if (flags == -1) {
         perror("fcntl F_GETFD");
         return -1;
     }
-
+    
     flags |= O_NONBLOCK | O_CLOEXEC;
     r = fcntl(sfd, F_SETFL, flags);
     if (r == -1) {
@@ -118,7 +120,7 @@ static void _br_dispatch_init() {
     if (_br_queue_write == NULL) {
         _dispatch_register_signal_handler_4LINUX(br_dispatch_handler);
         _br_queue_write = dispatch_queue_create("br_write_queue", 0);
-//        _br_queue_write = dispatch_get_main_queue();
+        //        _br_queue_write = dispatch_get_main_queue();
         BRLog(@"    br queue: 0x%llX", (unsigned long long) _br_queue_write);
     }
 }
@@ -140,7 +142,7 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
     
     _br_server_socket_epoll_init();
     _br_dispatch_init();
-
+    
     struct epoll_event event;
     br_client_t server;
     server.fd = sfd;
@@ -182,7 +184,7 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                         close(infd);
                         break;
                     }
-
+                    
                     /* create br_client_t */
                     BRLog(@"%3d creating client on fd", c->fd);
                     br_client_t *c = malloc(sizeof(br_client_t));
@@ -195,7 +197,7 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
                     c->fd = infd;
                     c->in_addr = in_addr;
                     r = getnameinfo(&in_addr, in_len, c->hbuf, sizeof(c->hbuf), c->sbuf, sizeof(c->sbuf), NI_NUMERICHOST | NI_NUMERICSERV);
-
+                    
                     /* setup epoll */
                     struct epoll_event event;
                     event.data.ptr = c;
@@ -255,14 +257,14 @@ static int _br_server_socket_epoll(char *hostname, char *servname, void (^on_acc
 }
 #endif
 
-int br_server_create(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *, char *, size_t), void (^on_close)(br_client_t *)){
+br_server_t *br_server_create(char *hostname, char *servname, void (^on_accept)(br_client_t *), void (^on_read)(br_client_t *, char *, size_t), void (^on_close)(br_client_t *)){
     BRLog(@"creating server: %s %s", hostname, servname);
 #ifndef __APPLE__
-
+    
     _br_server_socket_epoll(hostname, servname, on_accept, on_read, on_close);
     
 #endif
-    return 0;
+    return NULL;
 }
 
 void br_client_close(br_client_t *client) {
