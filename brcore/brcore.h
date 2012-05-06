@@ -44,7 +44,7 @@ typedef struct br_client {
 
 void br_log(char *fmt, ...);
 
-#define BR_LOG_TRA_ENABLED 0
+#define BR_LOG_TRA_ENABLED 1
 #define BR_LOG_DEB_ENABLED 0
 #define BR_LOG_INF_ENABLED 0
 #define BR_LOG_ERR_ENABLED 1

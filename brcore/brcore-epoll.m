@@ -16,26 +16,32 @@
 // PRIVATE AREA
 ////////////////////////////////
 
-static void _br_create_bind(br_server_t *s, char *hostname, char *servname);
-static int _br_nonblock(int fd);
-static void _br_dispatch_handler();
-static void _br_init();
-
 #define _BR_EPOLL_MAX_EVENTS 128
 #define _BR_EPOLL_TIMEOUT 1000
 #define _BR_READ_BUFFLEN 1024*4
-static int _br_epoll_fd = -1;
-static struct epoll_event *_br_epoll_events = NULL;
+
+typedef struct br_server_list {
+    br_server_t *s;
+    struct br_server_list *next;
+} br_server_list;
+
+static void _br_create_bind_listen(br_server_t *s, char *hostname, char *servname);
+static int _br_nonblock(int fd);
+static void _br_dispatch_handler();
+static void _br_init();
+static void _br_server_addlist(br_server_t *s);
+
 static dispatch_queue_t _br_loop_queue = NULL;
 typedef void (_dispatch_main_q_handler_4LINUX)(void);
 extern void _dispatch_main_queue_callback_4LINUX();
 extern void _dispatch_register_signal_handler_4LINUX(_dispatch_main_q_handler_4LINUX);
 static dispatch_once_t _br_init_once;
 static unsigned long long _br_runloop_usage = 0;
+static br_server_list *_br_server_list = NULL;
 
 
 /* creates a server socket */
-static void _br_create_bind(br_server_t *s, char *hostname, char *servname) {
+static void _br_create_bind_listen(br_server_t *s, char *hostname, char *servname) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int r;
@@ -89,6 +95,12 @@ static void _br_create_bind(br_server_t *s, char *hostname, char *servname) {
         perror("non blocking IO");
         abort();
     }
+
+    r = listen(s->fd, SOMAXCONN);
+    if (r == -1) {
+        perror("listen");
+        abort();
+    }
 }
 
 
@@ -121,18 +133,6 @@ static void _br_dispatch_handler() {
 
 /* internal setup */
 static void _br_init() {
-    /* epoll stuff */
-    _br_epoll_events = calloc(_BR_EPOLL_MAX_EVENTS, sizeof(struct epoll_event));
-    if (_br_epoll_events == NULL) {
-        perror("Failed to allocate _br_epoll_events");
-        abort();
-    }
-    _br_epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-    if (_br_epoll_fd == -1) {
-        perror("epoll_create1");
-        abort();
-    }
-    
     /* libdispatch stuff */
     _br_loop_queue = dispatch_queue_create("br_loop_queue", 0);
     if (_br_loop_queue == NULL) {
@@ -142,6 +142,30 @@ static void _br_init() {
     _dispatch_register_signal_handler_4LINUX(_br_dispatch_handler);
     
     return;
+}
+
+
+/* append server to internal list */
+static void _br_server_addlist(br_server_t *s) {
+    br_server_list *n = malloc(sizeof(br_server_list));
+    if (n == NULL) {
+        perror("ERROR malloc br_server_list");
+        abort();
+    }
+    memset(n, 0, sizeof(br_server_list));
+    n->s = s;
+    n->next = NULL;
+    
+    br_log_trace("added to serverlist: 0x%lx", n->s);
+    if (_br_server_list == NULL) {
+        _br_server_list = n;
+        return;
+    }
+    br_server_list *item = _br_server_list;
+    while (item->next != NULL) {
+        item = item->next;
+    }
+    item->next = n;
 }
 
 
@@ -185,30 +209,15 @@ br_server_t *br_server_create(char *hostname,
     memset(s, 0, sizeof(br_server_t));
     
     /* setup socket */
-    _br_create_bind(s, hostname, servname);
-    r = listen(s->fd, SOMAXCONN);
-    if (r == -1) {
-        perror("listen");
-        abort();
-    }
+    _br_create_bind_listen(s, hostname, servname);
 
-    /* add socket to epoll */
-    struct epoll_event event;
-    event.data.ptr = s;
-    event.events = EPOLLIN | EPOLLET;
-    r = epoll_ctl(_br_epoll_fd, EPOLL_CTL_ADD, s->fd, &event);
-    if (r == -1) {
-        perror("epoll_ctl");
-        abort();
-    }
-    
     /* copy blocks references */
     s->on_accept = (__bridge_retained void *) on_accept;
     s->on_close = (__bridge_retained void *) on_close;
     s->on_read = (__bridge_retained void *) on_read;
 
-    /* increment runloop usage and return */
-    _br_runloop_usage++;
+    /* add server to list and return */
+    _br_server_addlist(s);
 
     br_log_trace("server created 0x%lx", s);
     return s;
@@ -228,7 +237,7 @@ void br_client_close(br_client_t *c) {
         }
         br_log_trace("%3d 0x%lx removing client", c->fd, c);
         
-        free(c);
+        //free(c);
         
         /* decrement loop usage */
         _br_runloop_usage--;
@@ -256,17 +265,47 @@ void br_client_write(br_client_t *c, char *buff, size_t buff_len, void (^on_erro
 /* runloop, it exists if everything is closed */
 void br_runloop() {
     br_log_trace("entering runloop");
+
+    static int efd = -1;
+    static struct epoll_event *events = NULL;
+
+    /* epoll init */
+    events = calloc(_BR_EPOLL_MAX_EVENTS, sizeof(struct epoll_event));
+    if (events == NULL) {
+        perror("Failed to allocate events");
+        abort();
+    }
+    efd = epoll_create1(EPOLL_CLOEXEC);
+    if (efd == -1) {
+        perror("epoll_create1");
+        abort();
+    }
     
-    int maxfd = 0;
-    
+    /* add servers to epoll */
+    br_server_list *item_s = _br_server_list;
+    while (item_s != NULL) {
+        struct epoll_event event;
+        event.data.ptr = item_s->s;
+        event.events = EPOLLIN | EPOLLET;
+        int r = epoll_ctl(efd, EPOLL_CTL_ADD, item_s->s->fd, &event);
+        if (r == -1) {
+            perror("epoll_ctl");
+            abort();
+        }
+        br_log_trace("%3d added server to efd %d", item_s->s->fd, efd);
+
+        /* increment runloop usage and continue */
+        _br_runloop_usage++;        
+        item_s = item_s->next;
+    }
+
     while (_br_runloop_usage > 0) {
-        br_log_trace("%3d epoll_wait, usage: %llu", _br_epoll_fd, _br_runloop_usage);
-        int n = epoll_wait(_br_epoll_fd, _br_epoll_events, _BR_EPOLL_MAX_EVENTS, _BR_EPOLL_TIMEOUT);
-        _br_dispatch_handler();
+        br_log_trace("%3d epoll_wait, usage: %llu", efd, _br_runloop_usage);
+        int n = epoll_wait(efd, events, _BR_EPOLL_MAX_EVENTS, _BR_EPOLL_TIMEOUT);
         for (int i = 0; i < n; i++) {
-            br_client_t *t = _br_epoll_events[i].data.ptr;
-            br_log_trace("%3d event on socket %s flags 0x%04x", t->fd, (t->type ? "CLIENT" : "SERVER"), _br_epoll_events[i].events);
-            if ((_br_epoll_events[i].events & EPOLLERR) || (_br_epoll_events[i].events & EPOLLHUP) || (!(_br_epoll_events[i].events & EPOLLIN))) {
+            br_client_t *t = events[i].data.ptr;
+            br_log_trace("%3d event on socket %s flags 0x%04x", t->fd, (t->type ? "CLIENT" : "SERVER"), events[i].events);
+            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (!(events[i].events & EPOLLIN))) {
                 br_log_trace("%3d ERROR epoll on fd: %s", t->fd, strerror(errno));
                 if (t->type == BRSOCKET_CLIENT) {
                     br_client_close(t);
@@ -322,7 +361,7 @@ void br_runloop() {
                     struct epoll_event event;
                     event.data.ptr = c;
                     event.events = EPOLLIN | EPOLLET;
-                    r = epoll_ctl(_br_epoll_fd, EPOLL_CTL_ADD, fd, &event);
+                    r = epoll_ctl(efd, EPOLL_CTL_ADD, fd, &event);
                     if (r == -1) {
                         br_log_trace("%3d %3d ERROR on epoll_client: %s", fd, s->fd, strerror(errno));
                         br_client_close(c);
@@ -362,6 +401,9 @@ void br_runloop() {
                     if (on_read != NULL) {
                         on_read(c, buff, count);
                     }
+                }
+                if (c->done) {
+                    free(c);
                 }
                 continue;
             } /* read from client */
