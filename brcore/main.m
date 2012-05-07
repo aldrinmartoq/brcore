@@ -56,9 +56,6 @@ void run() {
     settings.on_url = on_url;
 
     br_log_info("CLIENT BUFFER SIZE: %ld", sizeof(ll));
-    
-    dispatch_queue_t q = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
-    
 
     br_server_t *s = br_server_create("0.0.0.0", "9999", ^(br_client_t *c) {
         count++;
@@ -77,12 +74,10 @@ void run() {
         c->udata = l;
         http_parser_init(parser, HTTP_REQUEST);
     }, ^(br_client_t *c, char *buff, size_t buff_len) {
-        dispatch_async(q, ^{
-            br_log_debug("CLIENT ON_READ socket %d bytes %d", c->fd, (int)buff_len);
-            struct local *l = &ll[c->fd];
-            http_parser *parser = &(l->parser);
-            http_parser_execute(parser, &settings, buff, buff_len);
-        });
+        br_log_debug("CLIENT ON_READ socket %d bytes %d", c->fd, (int)buff_len);
+        struct local *l = &ll[c->fd];
+        http_parser *parser = &(l->parser);
+        http_parser_execute(parser, &settings, buff, buff_len);
 //        br_log_debug("CLIENT READ socket %d bytes %d", c->fd, (int)buff_len);
 //        size_t buff2_len = 1024*500;
 //        char *buff2 = malloc(buff2_len);

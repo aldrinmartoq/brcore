@@ -116,7 +116,7 @@ static int _br_nonblock(int fd) {
         return -1;
     }
     
-    flags |= O_NONBLOCK | O_CLOEXEC;
+    flags |= O_NONBLOCK;
     r = fcntl(fd, F_SETFL, flags);
     if (r == -1) {
         perror("fcntl F_SETFL O_NONBLOCK O_CLOEXEC");
