@@ -462,8 +462,8 @@ void br_runloop() {
                 br_client_t *c = (br_client_t *)t;
                 while (true) {
                     /* read from socket */
-                    char buff[_BR_READ_BUFFLEN];
-                    ssize_t count = read(c->fd, buff, sizeof(buff));
+                    //char buff[_BR_READ_BUFFLEN];
+                    ssize_t count = read(c->fd, c->rbuff, sizeof(c->rbuff));
                     if (count == -1) {
                         if (errno != EAGAIN) {
                             br_log_trace("%3d ERROR read client: %s", c->fd, strerror(errno));
@@ -480,7 +480,7 @@ void br_runloop() {
                     /* call user block */
                     void (^on_read)(br_client_t *, char *, size_t) = (__bridge void (^)(br_client_t *x1, char *x2, size_t x3))c->s->on_read;
                     if (on_read != NULL) {
-                        on_read(c, buff, count);
+                        on_read(c, c->rbuff, count);
                     }
                 }
                 if (c->done) {

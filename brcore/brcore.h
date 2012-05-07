@@ -41,6 +41,7 @@ typedef struct br_client {
     char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
     br_server_t *s;
     void *udata;
+    char rbuff[1024*4];
 } br_client_t;
 
 #define BR_LOG_TRA_ENABLED 0
