@@ -42,8 +42,9 @@ int on_message_complete(http_parser *parser) {
 }
 
 int on_url(http_parser* parser, const char *at, size_t length) {
-    struct local *l = parser->data;
-    
+    br_client_t *c = parser->data;
+    struct local *l = &ll[c->fd];
+
     char tmpbuff[4096];
     snprintf(tmpbuff, sizeof(tmpbuff), "%s%.*s", l->url, (int)length, at);
     strncpy(l->url, tmpbuff, sizeof(l->url));
@@ -54,7 +55,7 @@ void run() {
     settings.on_message_complete = on_message_complete;
     settings.on_url = on_url;
 
-    br_log_info("CLIENT BUFFER SIZE: %ld\n", sizeof(ll));
+    br_log_info("CLIENT BUFFER SIZE: %ld", sizeof(ll));
 
     br_server_t *s = br_server_create("0.0.0.0", "9999", ^(br_client_t *c) {
         count++;
