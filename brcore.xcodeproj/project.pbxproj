@@ -9,8 +9,8 @@
 /* Begin PBXBuildFile section */
 		20217A7C15536D88008265A9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 20217A7B15536D88008265A9 /* Foundation.framework */; };
 		20217A7F15536D88008265A9 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 20217A7E15536D88008265A9 /* main.m */; };
-		20217A911553783B008265A9 /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 20217A901553783B008265A9 /* Makefile */; };
 		207ACE841556643F00F32573 /* brcore-kqueue.m in Sources */ = {isa = PBXBuildFile; fileRef = 207ACE831556643F00F32573 /* brcore-kqueue.m */; };
+		207ACE8B15572C6300F32573 /* http_parser.c in Sources */ = {isa = PBXBuildFile; fileRef = 207ACE8915572C6300F32573 /* http_parser.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -35,6 +35,9 @@
 		20217A9215540B12008265A9 /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
 		20370BC9155493770052F76F /* brcore-epoll.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "brcore-epoll.m"; sourceTree = "<group>"; };
 		207ACE831556643F00F32573 /* brcore-kqueue.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "brcore-kqueue.m"; sourceTree = "<group>"; };
+		207ACE8915572C6300F32573 /* http_parser.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = http_parser.c; sourceTree = "<group>"; };
+		207ACE8A15572C6300F32573 /* http_parser.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = http_parser.h; sourceTree = "<group>"; };
+		207ACEAB1557577200F32573 /* star-test.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "star-test.sh"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,6 +57,7 @@
 			children = (
 				20217A9215540B12008265A9 /* README.md */,
 				20217A7D15536D88008265A9 /* brcore */,
+				207ACE9E1557577200F32573 /* test */,
 				20217A7A15536D88008265A9 /* Frameworks */,
 				20217A7815536D88008265A9 /* Products */,
 			);
@@ -78,6 +82,8 @@
 		20217A7D15536D88008265A9 /* brcore */ = {
 			isa = PBXGroup;
 			children = (
+				207ACE8915572C6300F32573 /* http_parser.c */,
+				207ACE8A15572C6300F32573 /* http_parser.h */,
 				20217A7E15536D88008265A9 /* main.m */,
 				20217A8015536D88008265A9 /* Supporting Files */,
 				20217A8915536D9C008265A9 /* brcore.h */,
@@ -94,6 +100,14 @@
 				20217A8115536D88008265A9 /* brcore-Prefix.pch */,
 			);
 			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		207ACE9E1557577200F32573 /* test */ = {
+			isa = PBXGroup;
+			children = (
+				207ACEAB1557577200F32573 /* star-test.sh */,
+			);
+			path = test;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -147,8 +161,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				20217A7F15536D88008265A9 /* main.m in Sources */,
-				20217A911553783B008265A9 /* Makefile in Sources */,
 				207ACE841556643F00F32573 /* brcore-kqueue.m in Sources */,
+				207ACE8B15572C6300F32573 /* http_parser.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

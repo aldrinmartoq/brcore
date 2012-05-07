@@ -28,12 +28,13 @@ static void _br_create_bind_listen(br_server_t *s, char *hostname, char *servnam
 static int _br_nonblock(int fd);
 static void _br_init();
 static void _br_server_addlist(br_server_t *s);
+static void _br_server_closeall();
 
 static dispatch_queue_t _br_loop_queue = NULL;
 static dispatch_once_t _br_init_once;
 static unsigned long long _br_runloop_usage = 0;
 static br_server_list *_br_server_listhead = NULL;
-int kq = -1;
+static int kq = -1;
 
 
 /* creates a server socket */
@@ -128,7 +129,19 @@ static void _br_init() {
         perror("dispatch queue create");
         abort();
     }
-    
+
+    /* sigterm handler */
+    if (signal(SIGTERM, SIG_IGN) == SIG_ERR) {
+        perror("ERROR unable no ignore SIGTERM");
+        abort();
+    }
+    dispatch_source_t src_sigterm = dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGTERM, 0, _br_loop_queue);
+    dispatch_source_set_event_handler(src_sigterm, ^{
+        _br_server_closeall();
+    });
+    dispatch_resume(src_sigterm);
+    br_log_trace("br_init");
+
     return;
 }
 
@@ -157,6 +170,35 @@ static void _br_server_addlist(br_server_t *s) {
 }
 
 
+/* close servers */
+static void _br_server_closeall() {
+    br_log_info("Closing servers");
+
+    br_server_list *item_s = _br_server_listhead;
+    while (item_s != NULL) {
+        struct kevent ke;
+        memset(&ke, 0, sizeof(struct kevent));
+        EV_SET(&ke, item_s->s->fd, EVFILT_READ, EV_DELETE, 0, 5, item_s->s);
+        int r = kevent(kq, &ke, 1, NULL, 0, NULL);
+        if (r == -1) {
+            perror("kevent");
+            abort();
+        }
+        br_log_trace("%3d removed server from kq %d", item_s->s->fd, kq);
+
+        /* call user block */
+        void (^on_release)(br_server_t *) = (__bridge void (^)(br_server_t *x1))item_s->s->on_release;
+        if (on_release != NULL) {
+            on_release(item_s->s);
+        }
+
+        /* decrement runloop usage and continue */
+        _br_runloop_usage--;
+        item_s = item_s->next;
+    }
+}
+
+
 
 ////////////////////////////////
 // PUBLIC API
@@ -164,9 +206,7 @@ static void _br_server_addlist(br_server_t *s) {
 
 
 /* simple logging */
-void br_log(char level, char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
+void br_log(char level, char *fmt, va_list ap) {
     char format[4096];
     snprintf(format, sizeof(format), "%5d %25s %c %s\n",
              getpid(),
@@ -174,7 +214,6 @@ void br_log(char level, char *fmt, ...) {
              level,
              fmt);
     vfprintf(stderr, format, ap);
-    va_end(ap);
 }
 
 
@@ -224,7 +263,8 @@ br_server_t *br_server_create(char *hostname,
                               char *servname,
                               void (^on_accept)(br_client_t *),
                               void (^on_read)(br_client_t *, char *, size_t),
-                              void (^on_close)(br_client_t *)) {
+                              void (^on_close)(br_client_t *),
+                              void (^on_release)(br_server_t *)) {
     /* init internal stuff */
     dispatch_once(&_br_init_once, ^{ _br_init(); });
 
@@ -240,6 +280,7 @@ br_server_t *br_server_create(char *hostname,
     _br_create_bind_listen(s, hostname, servname);
 
     /* copy blocks references */
+    s->on_release = (__bridge_retained void *) on_release;
     s->on_accept = (__bridge_retained void *) on_accept;
     s->on_close = (__bridge_retained void *) on_close;
     s->on_read = (__bridge_retained void *) on_read;
@@ -344,9 +385,14 @@ void br_runloop() {
         kqtimeout.tv_nsec = 0;
         memset(kevents, 0, _BR_KQUEUE_MAX_EVENTS * sizeof(struct kevent));
         int n = kevent(kq, NULL, 0, kevents, _BR_KQUEUE_MAX_EVENTS, &kqtimeout);
+
+        // TODO: if (n == -1)
+
         for (int i = 0; i < n; i++) {
             br_client_t *t = kevents[i].udata;
             br_log_trace("%3d event on socket %s flags 0x%04x 0x%04x data %d", t->fd, (t->type ? "CLIENT" : "SERVER"), kevents[i].flags, kevents[i].fflags, kevents[i].data);
+
+            // TODO if error on socket
 
             /* new client on server */
             if (t->type == BRSOCKET_SERVER) {

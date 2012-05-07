@@ -1,8 +1,8 @@
-main: brcore-epoll.o main.o
-	brayatan-cc -g -o main brcore-epoll.o main.o
+main: brcore-epoll.o main.o http_parser.o
+	brayatan-cc -g -o main brcore-epoll.o main.o http_parser.o
 
-main-kqueue: brcore-kqueue.o main.o
-	brayatan-cc -g -o main-kqueue brcore-kqueue.o main.o
+main-kqueue: brcore-kqueue.o main.o http_parser.o
+	brayatan-cc -g -o main-kqueue brcore-kqueue.o main.o http_parser.o
 
 brcore-kqueue.o: brcore.h brcore-kqueue.m
 	brayatan-cc -g -c -o brcore-kqueue.o brcore-kqueue.m
